@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DELTA SET Signal 2025</title>
+    
+    <!-- Google Fonts: Kanit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* --- Custom Styles & Floating Emojis --- */
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f0f2f5; /* Instagram-like background */
+            color: #262626;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .emoji-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .emoji {
+            position: absolute;
+            bottom: -50px;
+            font-size: 2rem;
+            opacity: 0;
+            animation: floatUp 15s infinite linear;
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh);
+                opacity: 0;
+            }
+        }
+
+        .btn-modern {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Table styles */
+        .data-table th, .data-table td {
+            text-align: left;
+            padding: 12px 15px;
+        }
+        .data-table thead {
+            background-color: #f8f9fa;
+        }
+        .data-table tbody tr {
+            border-bottom: 1px solid #e9ecef;
+        }
+        .data-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        .data-table tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Floating Emojis Background -->
+    <div id="emoji-container" class="emoji-container"></div>
+
+    <div class="main-container min-h-screen p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 tracking-tight">
+                DELTA SET Signal <span class="text-blue-500">2025</span>
+            </h1>
+            <p class="mt-2 text-lg text-gray-600">
+                แสดงบันทึกและวิเคราะห์ข้อมูล BOT
+            </p>
+        </header>
+
+        <main class="max-w-7xl mx-auto">
+            <!-- Control Panel -->
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="w-full sm:w-auto">
+                        <h2 class="text-xl font-semibold text-gray-700">ตัวกรองข้อมูล</h2>
+                        <div class="flex flex-wrap gap-4 mt-2">
+                            <select id="stock-filter" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                            <select id="action-filter" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                <option selected value="all">การกระทำทั้งหมด</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="update-btn" class="btn-modern w-full sm:w-auto bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-lg">
+                        🔄 อัพเดทข้อมูล
+                    </button>
+                </div>
+            </div>
+
+            <!-- Data Table Section -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+                 <div class="p-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">
+                        ตารางข้อมูล
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="data-table w-full text-sm">
+                        <thead class="text-xs text-gray-700 uppercase">
+                            <tr>
+                                <th>วันที่บันทึก</th>
+                                <th>หุ้น</th>
+                                <th>ให้ทำการ</th>
+                                <th>THB</th>
+                                <th>ขนาด Lot</th>
+                                <th>Comment</th>
+                                <th>TP@5.5%</th>
+                                <th>SL@4%</th>
+                                <th>Profit%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table-body">
+                           <!-- Data will be injected here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    กราฟวิเคราะห์ Profit%
+                </h2>
+                <div class="h-96">
+                    <canvas id="profitChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjYqAauEMjOk8QETH8f3YH8LqlCTHwmxVi1y2tQhngeVwwngTHO8gLFno1bfJDEvuPPg/exec";
+        
+        // --- Global State ---
+        let allData = [];
+        let profitChart = null;
+        
+        // --- DOM Elements ---
+        const updateBtn = document.getElementById('update-btn');
+        const tableBody = document.getElementById('data-table-body');
+        const stockFilter = document.getElementById('stock-filter');
+        const actionFilter = document.getElementById('action-filter');
+
+        // --- Floating Emojis ---
+        function createFloatingEmojis() {
+            const container = document.getElementById('emoji-container');
+            const emojis = ['📈', '📉', '💰', '💹', '📊', '💸', '🚀'];
+            const emojiCount = 30;
+
+            for (let i = 0; i < emojiCount; i++) {
+                const emoji = document.createElement('span');
+                emoji.classList.add('emoji');
+                emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                emoji.style.left = `${Math.random() * 100}vw`;
+                emoji.style.animationDuration = `${Math.random() * 10 + 10}s`; // 10-20 seconds
+                emoji.style.animationDelay = `${Math.random() * 10}s`;
+                emoji.style.fontSize = `${Math.random() * 1.5 + 1}rem`; // 1-2.5rem
+                container.appendChild(emoji);
+            }
+        }
+
+        // --- Data Fetching (JSONP) ---
+        function fetchData() {
+            Swal.fire({
+                title: 'กำลังโหลดข้อมูล...',
+                text: 'กรุณารอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Create a unique callback function name
+            const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+            
+            // Define the callback function on the window object
+            window[callbackName] = (data) => {
+                // Clean up: remove the script tag and the callback function
+                document.body.removeChild(script);
+                delete window[callbackName];
+                
+                // Process data
+                if (data && data.content) {
+                    allData = data.content.slice(1); // Remove header row
+                    saveToLocalStorage(allData);
+                    processAndDisplayData(allData);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'อัพเดทข้อมูลสำเร็จ!',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                } else {
+                    handleFetchError('ข้อมูลไม่ถูกต้อง');
+                }
+            };
+
+            // Create a script tag to make the JSONP request
+            const script = document.createElement('script');
+            script.src = `${SCRIPT_URL}?callback=${callbackName}`;
+            script.onerror = () => handleFetchError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+            document.body.appendChild(script);
+        }
+
+        function handleFetchError(message) {
+             Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด!',
+                text: message,
+            });
+        }
+
+        // --- Local Storage ---
+        function saveToLocalStorage(data) {
+            try {
+                localStorage.setItem('botData', JSON.stringify(data));
+            } catch (e) {
+                console.error("Error saving to local storage", e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const data = localStorage.getItem('botData');
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.error("Error loading from local storage", e);
+                return null;
+            }
+        }
+
+        // --- Data Processing and Display ---
+        function processAndDisplayData(data) {
+            populateFilters(data);
+            applyFilters();
+        }
+
+        function renderTable(data) {
+            tableBody.innerHTML = '';
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">ไม่พบข้อมูล</td></tr>`;
+                return;
+            }
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="whitespace-nowrap">${row[0] ? new Date(row[0]).toLocaleDateString('th-TH') : '-'}</td>
+                    <td>${row[1] || '-'}</td>
+                    <td>${row[2] || '-'}</td>
+                    <td>${row[3] ? parseFloat(row[3]).toLocaleString() : '-'}</td>
+                    <td>${row[4] || '-'}</td>
+                    <td>${row[5] || '-'}</td>
+                    <td>${row[6] ? parseFloat(row[6]).toFixed(2) : '-'}</td>
+                    <td>${row[7] ? parseFloat(row[7]).toFixed(2) : '-'}</td>
+                    <td class="${(row[8] || 0) >= 0 ? 'text-green-600' : 'text-red-600'} font-semibold">${row[8] !== '' && row[8] !== null ? (parseFloat(row[8]) * 100).toFixed(2) + '%' : '-'}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('profitChart').getContext('2d');
+            
+            const labels = data.map(row => new Date(row[0]).toLocaleDateString('th-TH')).reverse();
+            // MODIFIED: Multiply profit by 100 for chart data
+            const profitData = data.map(row => (parseFloat(row[8] || 0) * 100)).reverse();
+
+            const backgroundColors = profitData.map(p => p >= 0 ? 'rgba(75, 192, 192, 0.2)' : 'rgba(255, 99, 132, 0.2)');
+            const borderColors = profitData.map(p => p >= 0 ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)');
+
+            if (profitChart) {
+                profitChart.destroy();
+            }
+
+            profitChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Profit %',
+                        data: profitData,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toFixed(2) + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- Filtering Logic ---
+        function populateFilters(data) {
+            const actions = [...new Set(data.map(row => row[2]).filter(Boolean))];
+
+            // MODIFIED: Only show 'DELTA' in the stock filter
+            stockFilter.innerHTML = '<option value="DELTA">DELTA</option>';
+
+            actionFilter.innerHTML = '<option value="all">การกระทำทั้งหมด</option>';
+            actions.forEach(action => {
+                const option = document.createElement('option');
+                option.value = action;
+                option.textContent = action;
+                actionFilter.appendChild(option);
+            });
+        }
+
+        function applyFilters() {
+            const selectedStock = stockFilter.value;
+            const selectedAction = actionFilter.value;
+
+            let filteredData = allData.filter(row => {
+                const stockMatch = selectedStock === 'all' || row[1] === selectedStock;
+                const actionMatch = selectedAction === 'all' || row[2] === selectedAction;
+                return stockMatch && actionMatch;
+            });
+            
+            renderTable(filteredData);
+            renderChart(filteredData);
+        }
+        
+        // --- Event Listeners ---
+        updateBtn.addEventListener('click', fetchData);
+        stockFilter.addEventListener('change', applyFilters);
+        actionFilter.addEventListener('change', applyFilters);
+
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            createFloatingEmojis();
+            const cachedData = loadFromLocalStorage();
+            if (cachedData && cachedData.length > 0) {
+                allData = cachedData;
+                processAndDisplayData(allData);
+                // Fetch new data in the background for freshness
+                // fetchData(); // You can uncomment this to auto-refresh on load
+            } else {
+                fetchData();
+            }
+        });
+    </script>
+</body>
+</html>
