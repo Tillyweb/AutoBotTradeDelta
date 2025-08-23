@@ -426,13 +426,7 @@
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
             createFloatingEmojis();
-            const cachedData = loadFromLocalStorage();
-            if (cachedData && cachedData.length > 0) {
-                allData = cachedData;
-                processAndDisplayData(allData);
-            } else {
-                fetchData();
-            }
+            fetchData(); // Always fetch new data on initial load
         });
     </script>
 </body>
