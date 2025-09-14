@@ -127,22 +127,23 @@
         <main class="max-w-7xl mx-auto">
             <!-- Control Panel -->
             <div class="bg-white rounded-xl shadow-md p-6 mb-8">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <!-- Filters -->
-                    <div class="w-full md:w-auto">
+                    <div class="md:col-span-1">
                         <h2 class="text-xl font-semibold text-gray-700 mb-2">ตัวกรองข้อมูล</h2>
                         <div class="flex flex-col sm:flex-row gap-4">
-                            <select id="stock-filter" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
-                                <!-- Options will be populated by JS -->
-                            </select>
                             <select id="action-filter" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
                                 <option selected value="all">การกระทำทั้งหมด</option>
+                            </select>
+                             <select id="time-range-filter" class="w-full sm:w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                <option value="all">ทั้งหมด</option>
+                                <option value="monthly">รายเดือน</option>
                             </select>
                         </div>
                     </div>
                     
                     <!-- Win Rate Stats -->
-                    <div class="w-full md:w-auto border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
+                    <div class="md:col-span-1 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
                         <h2 class="text-xl font-semibold text-gray-700 mb-2">สถิติและอัตราการชนะ</h2>
                         <div id="win-rate-stats" class="flex items-center gap-4 text-gray-800">
                             <!-- Stats will be injected here -->
@@ -150,11 +151,21 @@
                     </div>
 
                     <!-- Update Button -->
-                    <div class="w-full md:w-auto flex-shrink-0">
-                         <button id="update-btn" class="btn-modern w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-lg">
+                    <div class="md:col-span-1 flex justify-end">
+                         <button id="update-btn" class="btn-modern w-full md:w-auto bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-lg">
                             🔄 อัพเดทข้อมูล
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Summary Chart Section -->
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <h2 id="summary-chart-title" class="text-2xl font-semibold text-gray-800 mb-4">
+                    กราฟสรุปผล Profit%
+                </h2>
+                <div class="h-96">
+                    <canvas id="summaryChart"></canvas>
                 </div>
             </div>
 
@@ -187,10 +198,10 @@
                 </div>
             </div>
 
-            <!-- Chart Section -->
+            <!-- Individual Trades Chart Section -->
             <div class="bg-white rounded-xl shadow-md p-6 mb-8">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                    กราฟวิเคราะห์ Profit%
+                    กราฟวิเคราะห์ Profit% (ราย Transaction)
                 </h2>
                 <div class="h-96">
                     <canvas id="profitChart"></canvas>
@@ -206,13 +217,15 @@
         // --- Global State ---
         let allData = [];
         let profitChart = null;
+        let summaryChart = null;
         
         // --- DOM Elements ---
         const updateBtn = document.getElementById('update-btn');
         const tableBody = document.getElementById('data-table-body');
-        const stockFilter = document.getElementById('stock-filter');
         const actionFilter = document.getElementById('action-filter');
+        const timeRangeFilter = document.getElementById('time-range-filter');
         const winRateStatsDiv = document.getElementById('win-rate-stats');
+        const summaryChartTitle = document.getElementById('summary-chart-title');
 
         // --- Floating Emojis ---
         function createFloatingEmojis() {
@@ -248,7 +261,7 @@
                 delete window[callbackName];
                 
                 if (data && data.content) {
-                    allData = data.content.slice(1);
+                    allData = data.content.slice(1).filter(row => row[1] === 'DELTA'); // Pre-filter for DELTA
                     saveToLocalStorage(allData);
                     processAndDisplayData(allData);
                     Swal.fire({
@@ -317,7 +330,7 @@
             });
         }
 
-        function renderChart(data) {
+        function renderProfitChart(data) {
             const ctx = document.getElementById('profitChart').getContext('2d');
             const labels = data.map(row => new Date(row[0]).toLocaleDateString('th-TH')).reverse();
             const profitData = data.map(row => (parseFloat(row[8] || 0) * 100)).reverse();
@@ -342,55 +355,98 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: { y: { beginAtZero: false, ticks: { callback: (value) => value + '%' } } },
-                    plugins: { tooltip: { callbacks: { label: (context) => {
-                        let label = context.dataset.label || '';
-                        if (label) { label += ': '; }
-                        if (context.parsed.y !== null) { label += context.parsed.y.toFixed(2) + '%'; }
-                        return label;
-                    }}}}
+                    plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label || ''}: ${context.parsed.y.toFixed(2)}%` }}}
                 }
             });
         }
+        
+        function renderSummaryChart(data, range) {
+            const ctx = document.getElementById('summaryChart').getContext('2d');
+            if (summaryChart) { summaryChart.destroy(); }
+            
+            let chartData, chartLabels, chartType, chartTitle;
+
+            if (range === 'monthly') {
+                chartTitle = 'กราฟสรุปผล Profit% (รายเดือน)';
+                chartType = 'bar';
+                const monthlySummary = {};
+                data.forEach(row => {
+                    const date = new Date(row[0]);
+                    const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    if (!monthlySummary[monthKey]) monthlySummary[monthKey] = 0;
+                    monthlySummary[monthKey] += parseFloat(row[8] || 0) * 100;
+                });
+                
+                const sortedMonths = Object.keys(monthlySummary).sort();
+                chartLabels = sortedMonths.map(key => {
+                    const [year, month] = key.split('-');
+                    return new Date(year, month - 1).toLocaleDateString('th-TH', { month: 'short', year: 'numeric'});
+                });
+                chartData = sortedMonths.map(key => monthlySummary[key]);
+            } else { // 'all'
+                chartTitle = 'กราฟกำไรสะสม (Equity Curve)';
+                chartType = 'line';
+                const sortedData = [...data].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+                let cumulativeProfit = 0;
+                chartData = sortedData.map(row => {
+                    cumulativeProfit += parseFloat(row[8] || 0) * 100;
+                    return cumulativeProfit;
+                });
+                chartLabels = sortedData.map(row => new Date(row[0]).toLocaleDateString('th-TH'));
+            }
+
+            summaryChartTitle.textContent = chartTitle;
+
+            summaryChart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Profit %',
+                        data: chartData,
+                        backgroundColor: chartType === 'bar' 
+                            ? chartData.map(p => p >= 0 ? 'rgba(75, 192, 192, 0.2)' : 'rgba(255, 99, 132, 0.2)')
+                            : 'rgba(54, 162, 235, 0.2)',
+                        borderColor: chartType === 'bar'
+                            ? chartData.map(p => p >= 0 ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)')
+                            : 'rgba(54, 162, 235, 1)',
+                        borderWidth: chartType === 'bar' ? 1 : 2,
+                        fill: chartType === 'line',
+                        tension: 0.1
+                    }]
+                },
+                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: false, ticks: { callback: (value) => value.toFixed(2) + '%' } } },
+                    plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label || ''}: ${context.parsed.y.toFixed(2)}%` }}}
+                }
+            });
+        }
+
 
         function calculateAndDisplayWinRate(data) {
             let wins = 0;
             let losses = 0;
-            
             data.forEach(row => {
                 const profit = parseFloat(row[8]);
                 if (!isNaN(profit)) {
-                    if (profit > 0) {
-                        wins++;
-                    } else if (profit < 0) {
-                        losses++;
-                    }
+                    if (profit > 0) wins++;
+                    else if (profit < 0) losses++;
                 }
             });
-
             const totalTrades = wins + losses;
             const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-
             winRateStatsDiv.innerHTML = `
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-green-500">${wins}</div>
-                    <div class="text-sm text-gray-500">ชนะ</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-red-500">${losses}</div>
-                    <div class="text-sm text-gray-500">แพ้</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-2xl font-bold text-blue-500">${winRate.toFixed(2)}%</div>
-                    <div class="text-sm text-gray-500">Win Rate</div>
-                </div>
+                <div class="text-center"><div class="text-2xl font-bold text-green-500">${wins}</div><div class="text-sm text-gray-500">ชนะ</div></div>
+                <div class="text-center"><div class="text-2xl font-bold text-red-500">${losses}</div><div class="text-sm text-gray-500">แพ้</div></div>
+                <div class="text-center"><div class="text-2xl font-bold text-blue-500">${winRate.toFixed(2)}%</div><div class="text-sm text-gray-500">Win Rate</div></div>
             `;
         }
-
 
         // --- Filtering Logic ---
         function populateFilters(data) {
             const actions = [...new Set(data.map(row => row[2]).filter(Boolean))];
-            stockFilter.innerHTML = '<option value="DELTA">DELTA</option>';
             actionFilter.innerHTML = '<option value="all">การกระทำทั้งหมด</option>';
             actions.forEach(action => {
                 const option = document.createElement('option');
@@ -401,27 +457,23 @@
         }
 
         function applyFilters() {
-            const selectedStock = stockFilter.value;
             const selectedAction = actionFilter.value;
+            const selectedTimeRange = timeRangeFilter.value;
 
-            let filteredData = allData.filter(row => {
-                const stockMatch = selectedStock === 'all' || row[1] === selectedStock;
-                const actionMatch = selectedAction === 'all' || row[2] === selectedAction;
-                return stockMatch && actionMatch;
-            });
+            let filteredData = allData.filter(row => selectedAction === 'all' || row[2] === selectedAction);
             
             filteredData.sort((a, b) => new Date(b[0]) - new Date(a[0]));
             
             renderTable(filteredData);
-            renderChart(filteredData);
-            calculateAndDisplayWinRate(filteredData); // Calculate stats based on filtered data
+            renderProfitChart(filteredData);
+            renderSummaryChart(filteredData, selectedTimeRange);
+            calculateAndDisplayWinRate(filteredData);
         }
         
         // --- Event Listeners ---
         updateBtn.addEventListener('click', fetchData);
-        stockFilter.addEventListener('change', applyFilters);
         actionFilter.addEventListener('change', applyFilters);
-
+        timeRangeFilter.addEventListener('change', applyFilters);
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -431,3 +483,4 @@
     </script>
 </body>
 </html>
+
