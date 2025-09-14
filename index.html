@@ -159,6 +159,33 @@
                 </div>
             </div>
 
+            <!-- Portfolio Growth Section -->
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                    จำลองการเติบโตของพอร์ต (ทบต้น)
+                </h2>
+                <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                    <label for="initial-investment" class="font-medium text-gray-700 flex-shrink-0">เงินลงทุนเริ่มต้น (THB):</label>
+                    <input type="number" id="initial-investment" value="100000" class="w-full sm:w-64 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="data-table w-full text-sm">
+                        <thead class="text-xs text-gray-700 uppercase">
+                            <tr>
+                                <th>เดือน</th>
+                                <th>เงินทุนต้นเดือน</th>
+                                <th>กำไร/ขาดทุน (%)</th>
+                                <th>กำไร/ขาดทุน (THB)</th>
+                                <th>เงินทุนสิ้นเดือน</th>
+                            </tr>
+                        </thead>
+                        <tbody id="portfolio-growth-table-body">
+                           <!-- Growth data will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Summary Chart Section -->
             <div class="bg-white rounded-xl shadow-md p-6 mb-8">
                 <h2 id="summary-chart-title" class="text-2xl font-semibold text-gray-800 mb-4">
@@ -226,6 +253,8 @@
         const timeRangeFilter = document.getElementById('time-range-filter');
         const winRateStatsDiv = document.getElementById('win-rate-stats');
         const summaryChartTitle = document.getElementById('summary-chart-title');
+        const initialInvestmentInput = document.getElementById('initial-investment');
+        const portfolioGrowthTableBody = document.getElementById('portfolio-growth-table-body');
 
         // --- Floating Emojis ---
         function createFloatingEmojis() {
@@ -329,6 +358,56 @@
                 tableBody.appendChild(tr);
             });
         }
+        
+        function renderPortfolioGrowth(data, initialInvestment) {
+            portfolioGrowthTableBody.innerHTML = ''; // Clear previous results
+            if (initialInvestment <= 0) {
+                portfolioGrowthTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">กรุณาใส่เงินลงทุนเริ่มต้นที่มากกว่า 0</td></tr>`;
+                return;
+            }
+
+            // 1. Group profits by month
+            const monthlySummary = {};
+            data.forEach(row => {
+                if(!row[0] || !row[8]) return; // Skip if date or profit is missing
+                const date = new Date(row[0]);
+                const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                if (!monthlySummary[monthKey]) {
+                    monthlySummary[monthKey] = 0;
+                }
+                monthlySummary[monthKey] += parseFloat(row[8] || 0); // Use the raw fraction (e.g., 0.05 for 5%)
+            });
+
+            const sortedMonths = Object.keys(monthlySummary).sort();
+            let currentCapital = initialInvestment;
+
+            // 2. Iterate and calculate compound growth
+            sortedMonths.forEach(monthKey => {
+                const monthlyProfitFraction = monthlySummary[monthKey];
+                const profitAmount = currentCapital * monthlyProfitFraction;
+                const endingCapital = currentCapital + profitAmount;
+
+                const [year, month] = monthKey.split('-');
+                const monthLabel = new Date(year, month - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric'});
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${monthLabel}</td>
+                    <td>${currentCapital.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="${monthlyProfitFraction >= 0 ? 'text-green-600' : 'text-red-600'} font-semibold">${(monthlyProfitFraction * 100).toFixed(2)}%</td>
+                    <td class="${profitAmount >= 0 ? 'text-green-600' : 'text-red-600'} font-semibold">${profitAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="font-bold">${endingCapital.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                `;
+                portfolioGrowthTableBody.appendChild(tr);
+                
+                currentCapital = endingCapital; // Compound for next month
+            });
+
+             if (sortedMonths.length === 0) {
+                portfolioGrowthTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">ไม่มีข้อมูลสำหรับคำนวณ</td></tr>`;
+            }
+        }
+
 
         function renderProfitChart(data) {
             const ctx = document.getElementById('profitChart').getContext('2d');
@@ -371,6 +450,7 @@
                 chartType = 'bar';
                 const monthlySummary = {};
                 data.forEach(row => {
+                    if(!row[0] || !row[8]) return;
                     const date = new Date(row[0]);
                     const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
                     if (!monthlySummary[monthKey]) monthlySummary[monthKey] = 0;
@@ -464,7 +544,10 @@
             
             filteredData.sort((a, b) => new Date(b[0]) - new Date(a[0]));
             
+            const initialInvestment = parseFloat(initialInvestmentInput.value) || 0;
+            
             renderTable(filteredData);
+            renderPortfolioGrowth(filteredData, initialInvestment);
             renderProfitChart(filteredData);
             renderSummaryChart(filteredData, selectedTimeRange);
             calculateAndDisplayWinRate(filteredData);
@@ -474,6 +557,7 @@
         updateBtn.addEventListener('click', fetchData);
         actionFilter.addEventListener('change', applyFilters);
         timeRangeFilter.addEventListener('change', applyFilters);
+        initialInvestmentInput.addEventListener('input', applyFilters);
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
